@@ -2,7 +2,7 @@
 
 CraftOS-PC compatible [graphics mode](https://www.craftos-pc.cc/docs/gfxmode) for CC:Tweaked terminals.
 
-**Minecraft 1.21.1** | **CC:Tweaked 1.116.0+** | **Fabric & NeoForge**
+**Minecraft 1.21.1** | **CC:Tweaked 1.117.0+** | **Fabric & NeoForge**
 
 ## What's done
 

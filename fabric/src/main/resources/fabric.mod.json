@@ -23,6 +23,6 @@
     "depends": {
         "fabricloader": ">=0.15.0",
         "minecraft": "1.21.1",
-        "computercraft": ">=1.116.0"
+        "computercraft": ">=1.117.0"
     }
 }

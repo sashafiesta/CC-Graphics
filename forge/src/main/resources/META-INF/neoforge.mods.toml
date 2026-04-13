@@ -27,7 +27,7 @@ side = "BOTH"
 [[dependencies.ccgraphics]]
 modId = "computercraft"
 type = "required"
-versionRange = "[1.116.0,)"
+versionRange = "[1.117.0,)"
 ordering = "AFTER"
 side = "BOTH"
 

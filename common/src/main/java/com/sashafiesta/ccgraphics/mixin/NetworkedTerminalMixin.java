@@ -46,18 +46,19 @@ abstract class NetworkedTerminalMixin extends Terminal {
                 && (!compressor.hasTimedKeyframes() || ccgraphics$framesSinceKeyframe < KEYFRAME_INTERVAL)
             ) {
                 var diff = new byte[current.length];
-                var changed = 0;
                 for (var i = 0; i < current.length; i++) {
                     diff[i] = (byte) (current[i] ^ ccgraphics$previousGraphics[i]);
-                    if (diff[i] != 0) changed++;
                 }
 
-                if (changed * 2 >= current.length) {
-                    var keyframeCompressor = GraphicsCompressor.forName("lz4");
-                    gfxState.ccgraphics$setGraphicsData(mode, keyframeCompressor.typeId(), keyframeCompressor.compress(current));
+                var diffCompressed = compressor.compress(diff);
+                var keyframeCompressor = GraphicsCompressor.forName("lz4");
+                var keyframeCompressed = keyframeCompressor.compress(current);
+
+                if (keyframeCompressed.length < diffCompressed.length) {
+                    gfxState.ccgraphics$setGraphicsData(mode, keyframeCompressor.typeId(), keyframeCompressed);
                     ccgraphics$framesSinceKeyframe = 0;
                 } else {
-                    gfxState.ccgraphics$setGraphicsData(mode, compressor.typeId(), compressor.compress(diff));
+                    gfxState.ccgraphics$setGraphicsData(mode, compressor.typeId(), diffCompressed);
                     ccgraphics$framesSinceKeyframe++;
                 }
             } else {

@@ -1,0 +1,70 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.95'
+}
+
+def mcVersion = property('mcVersion')
+def modVer = property('modVersion')
+def ccVersion = '1.117.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    maven { url = 'https://maven.squiddev.cc' }
+    maven { url = 'https://maven.parchmentmc.org' }
+}
+
+neoForge {
+    version = '21.1.9'
+
+    parchment {
+        minecraftVersion = '1.21'
+        mappingsVersion = '2024.07.28'
+    }
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+    }
+
+    mods {
+        ccgraphics {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDir rootProject.file('common/src/main/java')
+        resources.srcDir rootProject.file('common/src/main/resources')
+        java.srcDir rootProject.file('common/src/client/java')
+    }
+}
+
+dependencies {
+    implementation "cc.tweaked:cc-tweaked-1.21.1-forge:${ccVersion}"
+    compileOnly "cc.tweaked:cc-tweaked-1.21.1-core:1.117.1"
+
+    // NightConfig - bundled at runtime by NeoForge (transitive via cc-tweaked-forge)
+}
+
+base {
+    archivesName = "ccgraphics-${mcVersion}-forge"
+}
+
+version = modVer
+
+processResources {
+    inputs.property 'version', modVer
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand version: modVer
+    }
+}

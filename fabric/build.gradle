@@ -1,0 +1,79 @@
+plugins {
+    id 'fabric-loom' version '1.15.2'
+}
+
+def mcVersion = property('mcVersion')
+def modVer = property('modVersion')
+def ccVersion = '1.117.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    maven { url = 'https://maven.squiddev.cc' }
+    maven {
+        url = 'https://maven.parchmentmc.org'
+        content { includeGroup 'org.parchmentmc.data' }
+    }
+}
+
+loom {
+    accessWidenerPath = file('src/main/resources/ccgraphics.accesswidener')
+
+    mixin {
+        defaultRefmapName = 'ccgraphics-refmap.json'
+    }
+
+    runs {
+        client {
+            configName = 'Fabric Client'
+            ideConfigGenerated true
+        }
+        server {
+            configName = 'Fabric Server'
+            ideConfigGenerated true
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDir rootProject.file('common/src/main/java')
+        java.srcDir rootProject.file('common/src/client/java')
+        resources.srcDir rootProject.file('common/src/main/resources')
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${mcVersion}"
+    mappings loom.layered {
+        officialMojangMappings()
+        parchment "org.parchmentmc.data:parchment-1.21:2024.07.28@zip"
+    }
+
+    modImplementation 'net.fabricmc:fabric-loader:0.15.11'
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.102.1+1.21.1"
+
+    modImplementation "cc.tweaked:cc-tweaked-1.21.1-fabric:${ccVersion}"
+    compileOnly "cc.tweaked:cc-tweaked-1.21.1-core:1.117.1"
+
+    // NightConfig - bundled at runtime by CC:T's jar-in-jar
+    compileOnly 'com.electronwill.night-config:core:3.8.1'
+    compileOnly 'com.electronwill.night-config:toml:3.8.1'
+}
+
+base {
+    archivesName = "ccgraphics-${mcVersion}-fabric"
+}
+
+version = modVer
+
+processResources {
+    inputs.property 'version', modVer
+    filesMatching('fabric.mod.json') {
+        expand version: modVer
+    }
+}

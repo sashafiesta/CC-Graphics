@@ -20,6 +20,7 @@ abstract class ComputerExecutorMixin {
         .addFile("apis/term.lua")
         .addFile("apis/window.lua")
         .addFile("apis/paintutils.lua")
+        .addFile("apis/peripheral.lua")
         .addFile("programs/shell.lua")
         .addFile("programs/clear.lua")
         .addFile("programs/fun/advanced/gfxpaint.lua")

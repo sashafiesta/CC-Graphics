@@ -8,7 +8,6 @@ import dan200.computercraft.api.lua.LuaFunction;
 import dan200.computercraft.core.apis.TermMethods;
 import dan200.computercraft.core.terminal.Palette;
 import dan200.computercraft.core.terminal.Terminal;
-import dan200.computercraft.shared.peripheral.monitor.MonitorPeripheral;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
@@ -29,14 +28,6 @@ abstract class TermMethodsMixin {
     @Unique
     private IGraphicsTerminal ccgraphics$gfx() throws LuaException {
         return (IGraphicsTerminal) getTerminal();
-    }
-
-    @Unique
-    private void ccgraphics$assertNotMonitor() throws LuaException {
-        //noinspection ConstantValue - at runtime 'this' is TermAPI or MonitorPeripheral
-        if ((Object) this instanceof MonitorPeripheral) {
-            throw new LuaException("Graphics mode is not supported on monitors");
-        }
     }
 
     @Unique
@@ -77,7 +68,6 @@ abstract class TermMethodsMixin {
 
     @LuaFunction
     public final void setGraphicsMode(IArguments args) throws LuaException {
-        ccgraphics$assertNotMonitor();
         var value = args.get(0);
         int mode;
         if (value instanceof Boolean b) { mode = b ? 1 : 0; }
@@ -96,14 +86,12 @@ abstract class TermMethodsMixin {
 
     @LuaFunction
     public final Object getGraphicsMode() throws LuaException {
-        ccgraphics$assertNotMonitor();
         var mode = ccgraphics$gfx().ccgraphics$getGraphicsMode();
         return mode == 0 ? false : mode;
     }
 
     @LuaFunction
     public final void setPixel(IArguments args) throws LuaException {
-        ccgraphics$assertNotMonitor();
         var x = args.getInt(0);
         var y = args.getInt(1);
         var terminal = getTerminal();
@@ -128,7 +116,6 @@ abstract class TermMethodsMixin {
 
     @LuaFunction
     public final Object[] getPixel(IArguments args) throws LuaException {
-        ccgraphics$assertNotMonitor();
         var x = args.getInt(0);
         var y = args.getInt(1);
         var terminal = getTerminal();
@@ -145,7 +132,6 @@ abstract class TermMethodsMixin {
 
     @LuaFunction
     public final void drawPixels(IArguments args) throws LuaException {
-        ccgraphics$assertNotMonitor();
         var x = args.getInt(0);
         var y = args.getInt(1);
         var terminal = getTerminal();
@@ -219,7 +205,6 @@ abstract class TermMethodsMixin {
 
     @LuaFunction
     public final Object getPixels(IArguments args) throws LuaException {
-        ccgraphics$assertNotMonitor();
         var x = args.getInt(0);
         var y = args.getInt(1);
         var w = args.getInt(2);
@@ -261,7 +246,6 @@ abstract class TermMethodsMixin {
 
     @LuaFunction
     public final void setFrozen(boolean frozen) throws LuaException {
-        ccgraphics$assertNotMonitor();
         var terminal = getTerminal();
         synchronized (terminal) {
             ((IGraphicsTerminal) terminal).ccgraphics$setFrozen(frozen);
@@ -270,7 +254,6 @@ abstract class TermMethodsMixin {
 
     @LuaFunction
     public final boolean getFrozen() throws LuaException {
-        ccgraphics$assertNotMonitor();
         return ccgraphics$gfx().ccgraphics$getFrozen();
     }
 

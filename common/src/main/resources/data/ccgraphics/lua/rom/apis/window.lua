@@ -266,7 +266,6 @@ function create(parent, nX, nY, nWidth, nHeight, bStartVisible)
     end
 
     function window.clear()
-        if term.getGraphicsMode and term.getGraphicsMode() then return term.native().clear() end
         local sEmptyText = sEmptySpaceLine
         local sEmptyTextColor = tEmptyColorLines[nTextColor]
         local sEmptyBackgroundColor = tEmptyColorLines[nBackgroundColor]
@@ -405,7 +404,7 @@ function create(parent, nX, nY, nWidth, nHeight, bStartVisible)
     window.setBackgroundColour = setBackgroundColor
 
     function window.getSize(mode)
-        if mode and mode ~= 0 then return term.native().getSize(mode) end
+        if mode and mode ~= 0 then return nWidth * 6, nHeight * 9 end
         return nWidth, nHeight
     end
 

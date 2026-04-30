@@ -10,6 +10,7 @@ CraftOS-PC compatible [graphics mode](https://www.craftos-pc.cc/docs/gfxmode) fo
 - Bundled CraftOS-PC programs: gfxpaint, pngview, raycast
 - Network sync and NBT persistence
 - Compressed graphics packets (LZ4 + delta)
+- Monitor Support
 
 ## Configuration
 
@@ -19,7 +20,6 @@ CraftOS-PC compatible [graphics mode](https://www.craftos-pc.cc/docs/gfxmode) fo
 
 ## Known limitations
 
-- Monitors are not supported
 - Pocket computers won't display graphics on the in-hand item render (only in the GUI)
 - Graphics on pocket computers might be unstable
 - `term.screenshot()`, `term.showMouse()`, and `term.relativeMouse()` are not implemented (SDL-only in CraftOS-PC)

@@ -4,9 +4,25 @@
 
 if term.getGraphicsMode == nil then error("This requires CraftOS-PC v1.2 or later.") end
 
+local previousTerm = term.current()
+local monitor = peripheral and peripheral.find and peripheral.find("monitor") or nil
+if monitor then 
+    monitor.setTextScale(0.5)
+    term.redirect(monitor)
+end
+
+local function cleanup()
+    if term.getGraphicsMode and term.getGraphicsMode() then
+        term.setGraphicsMode(false)
+    end
+    if monitor then
+        term.redirect(previousTerm)
+    end
+end
+
 origerror = error
 error = function(text, level, ...)
-    term.setGraphicsMode(false)
+    cleanup()
     origerror(text, level + 1, ...)
 end
 
@@ -189,6 +205,6 @@ end
 
 os.pullEvent("char")
 os.pullEvent("char")
-term.setGraphicsMode(false)
+cleanup()
 --print(width)
 --print(height)

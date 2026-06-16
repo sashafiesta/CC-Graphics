@@ -266,6 +266,7 @@ function create(parent, nX, nY, nWidth, nHeight, bStartVisible)
     end
 
     function window.clear()
+        if term.getGraphicsMode and term.getGraphicsMode() then return term.native().clear() end
         local sEmptyText = sEmptySpaceLine
         local sEmptyTextColor = tEmptyColorLines[nTextColor]
         local sEmptyBackgroundColor = tEmptyColorLines[nBackgroundColor]

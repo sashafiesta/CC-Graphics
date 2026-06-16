@@ -9,6 +9,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Extends {@code TerminalState}'s wire format with the graphics payload (mode,
+ * compressor id, byte array) plus the optional 256-color palette used in mode 2.
+ * Written at the TAIL of {@code write(FriendlyByteBuf)} and read at the TAIL of
+ * the {@code FriendlyByteBuf} constructor; the in-memory package-private
+ * constructor leaves the fields at their {@code @Unique} defaults.
+ */
 @Mixin(value = TerminalState.class, remap = false)
 abstract class TerminalStateMixin implements IGraphicsTerminalState {
     @Unique private int ccgraphics$graphicsMode = 0;

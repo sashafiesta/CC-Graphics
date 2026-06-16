@@ -15,6 +15,7 @@
         "ServerComputerAccessor",
         "AbstractComputerBlockEntityMixin",
         "UserComputerInputMixin",
-        "ComputerExecutorMixin"
+        "ComputerExecutorMixin",
+        "MonitorBlockEntityMixin"
     ]
 }

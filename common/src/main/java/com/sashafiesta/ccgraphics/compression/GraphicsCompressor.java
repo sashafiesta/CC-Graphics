@@ -4,6 +4,14 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Strategy for compressing a graphics frame. Each implementation has a unique
+ * {@link #typeId()} so the wire payload can carry the algorithm out-of-band and
+ * the receiver can pick the matching decompressor.
+ * <p>
+ * Implementations are registered once at startup. Lookup is by {@link #forName}
+ * or {@link #forTypeId}; an unknown id falls back to {@link RawGraphicsCompressor}.
+ */
 public interface GraphicsCompressor {
     byte typeId();
 

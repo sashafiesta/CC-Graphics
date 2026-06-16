@@ -13,6 +13,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * Forces a keyframe whenever {@code getTerminalState} is called outside the
+ * per-tick broadcast - typically because a new viewer is joining and needs a
+ * full frame to reconstruct against. The {@code inTick} flag distinguishes the
+ * broadcast site from the new-viewer site.
+ */
 @Mixin(value = ServerComputer.class, remap = false)
 abstract class ServerComputerMixin {
     @Shadow @Final private NetworkedTerminal terminal;

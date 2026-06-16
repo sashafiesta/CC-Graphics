@@ -1,5 +1,6 @@
 package com.sashafiesta.ccgraphics.mixin;
 
+import com.sashafiesta.ccgraphics.CCGraphicsConfig;
 import com.sashafiesta.ccgraphics.compression.GraphicsCompressor;
 import com.sashafiesta.ccgraphics.duck.IGraphicsTerminal;
 import com.sashafiesta.ccgraphics.duck.IGraphicsTerminalState;
@@ -21,11 +22,46 @@ abstract class NetworkedTerminalMixin extends Terminal {
     private NetworkedTerminalMixin() { super(0, 0, false); }
 
     private static final int KEYFRAME_INTERVAL = 20;
+    private static final double NANOS_PER_TICK = 50_000_000.0;
 
     @Unique private byte[] ccgraphics$previousGraphics;
     @Unique private int ccgraphics$framesSinceKeyframe = KEYFRAME_INTERVAL;
 
     @Unique private boolean ccgraphics$hasReceivedKeyframe = false;
+
+    @Unique private double ccgraphics$bucketBytes = -1.0;
+    @Unique private long ccgraphics$bucketLastUpdateNs;
+
+    /**
+     * Token-bucket gate over graphics broadcasts. Refills in real-time so the
+     * sustained rate is TPS-independent. Returns true and deducts {@code bytes}
+     * if the bucket can pay; false otherwise. Bypassed entirely when
+     * throttling is disabled in config.
+     */
+    @Unique
+    private boolean ccgraphics$bucketTrySpend(int bytes) {
+        if (!CCGraphicsConfig.bandwidthThrottlingEnabled()) return true;
+
+        var capacity = CCGraphicsConfig.bandwidthCapacityBytes();
+        var refillRate = CCGraphicsConfig.bandwidthRefillBytesPerTick();
+
+        var nowNs = System.nanoTime();
+        if (ccgraphics$bucketBytes < 0.0) {
+            // First call on this terminal - start the bucket full.
+            ccgraphics$bucketBytes = capacity;
+        } else {
+            var elapsedNs = Math.max(0L, nowNs - ccgraphics$bucketLastUpdateNs);
+            var refill = (double) refillRate * (double) elapsedNs / NANOS_PER_TICK;
+            ccgraphics$bucketBytes = Math.min((double) capacity, ccgraphics$bucketBytes + refill);
+        }
+        ccgraphics$bucketLastUpdateNs = nowNs;
+
+        if (ccgraphics$bucketBytes >= bytes) {
+            ccgraphics$bucketBytes -= bytes;
+            return true;
+        }
+        return false;
+    }
 
     @Inject(method = "write", at = @At("RETURN"))
     private void ccgraphics$onWrite(CallbackInfoReturnable<TerminalState> cir) {
@@ -34,49 +70,69 @@ abstract class NetworkedTerminalMixin extends Terminal {
         var gfxState = (IGraphicsTerminalState) state;
         var mode = gfx.ccgraphics$getGraphicsMode();
 
-        if (mode > 0) {
-            var current = gfx.ccgraphics$getGraphics();
-            var compressor = GraphicsCompressor.defaultCompressor();
-            var forceKeyframe = gfx.ccgraphics$consumeKeyframeRequest();
+        if (mode == 0) {
+            gfxState.ccgraphics$setGraphicsData(0, (byte) 0, new byte[0]);
+            ccgraphics$previousGraphics = null;
+            ccgraphics$framesSinceKeyframe = KEYFRAME_INTERVAL;
+            return;
+        }
 
-            if (!forceKeyframe
-                && compressor.isDiff()
-                && ccgraphics$previousGraphics != null
-                && ccgraphics$previousGraphics.length == current.length
-                && (!compressor.hasTimedKeyframes() || ccgraphics$framesSinceKeyframe < KEYFRAME_INTERVAL)
-            ) {
-                var diff = new byte[current.length];
-                for (var i = 0; i < current.length; i++) {
-                    diff[i] = (byte) (current[i] ^ ccgraphics$previousGraphics[i]);
-                }
+        var current = gfx.ccgraphics$getGraphics();
+        var compressor = GraphicsCompressor.defaultCompressor();
+        var forceKeyframe = gfx.ccgraphics$consumeKeyframeRequest();
 
-                var diffCompressed = compressor.compress(diff);
-                var keyframeCompressor = GraphicsCompressor.forName("lz4");
-                var keyframeCompressed = keyframeCompressor.compress(current);
+        byte[] payload;
+        byte payloadType;
+        boolean payloadIsKeyframe;
 
-                if (keyframeCompressed.length < diffCompressed.length) {
-                    gfxState.ccgraphics$setGraphicsData(mode, keyframeCompressor.typeId(), keyframeCompressed);
-                    ccgraphics$framesSinceKeyframe = 0;
-                } else {
-                    gfxState.ccgraphics$setGraphicsData(mode, compressor.typeId(), diffCompressed);
-                    ccgraphics$framesSinceKeyframe++;
-                }
-            } else {
-                var keyframeCompressor = compressor.isDiff()
-                    ? GraphicsCompressor.forName("lz4")
-                    : compressor;
-                gfxState.ccgraphics$setGraphicsData(mode, keyframeCompressor.typeId(), keyframeCompressor.compress(current));
-                ccgraphics$framesSinceKeyframe = 0;
+        var canDiff = !forceKeyframe
+            && compressor.isDiff()
+            && ccgraphics$previousGraphics != null
+            && ccgraphics$previousGraphics.length == current.length
+            && (!compressor.hasTimedKeyframes() || ccgraphics$framesSinceKeyframe < KEYFRAME_INTERVAL);
+
+        if (canDiff) {
+            var diff = new byte[current.length];
+            for (var i = 0; i < current.length; i++) {
+                diff[i] = (byte) (current[i] ^ ccgraphics$previousGraphics[i]);
             }
+            var diffCompressed = compressor.compress(diff);
+            var keyframeCompressor = GraphicsCompressor.forName("lz4");
+            var keyframeCompressed = keyframeCompressor.compress(current);
 
+            if (keyframeCompressed.length < diffCompressed.length) {
+                payload = keyframeCompressed;
+                payloadType = keyframeCompressor.typeId();
+                payloadIsKeyframe = true;
+            } else {
+                payload = diffCompressed;
+                payloadType = compressor.typeId();
+                payloadIsKeyframe = false;
+            }
+        } else {
+            var keyframeCompressor = compressor.isDiff()
+                ? GraphicsCompressor.forName("lz4")
+                : compressor;
+            payload = keyframeCompressor.compress(current);
+            payloadType = keyframeCompressor.typeId();
+            payloadIsKeyframe = true;
+        }
+
+        // New-viewer keyframes bypass the bucket - the alternative is the viewer
+        // staring at garbage until the bucket refills.
+        if (forceKeyframe || ccgraphics$bucketTrySpend(payload.length)) {
+            gfxState.ccgraphics$setGraphicsData(mode, payloadType, payload);
+            ccgraphics$framesSinceKeyframe = payloadIsKeyframe ? 0 : ccgraphics$framesSinceKeyframe + 1;
             if (ccgraphics$previousGraphics == null || ccgraphics$previousGraphics.length != current.length) {
                 ccgraphics$previousGraphics = new byte[current.length];
             }
             System.arraycopy(current, 0, ccgraphics$previousGraphics, 0, current.length);
         } else {
-            gfxState.ccgraphics$setGraphicsData(0, (byte) 0, new byte[0]);
-            ccgraphics$previousGraphics = null;
-            ccgraphics$framesSinceKeyframe = KEYFRAME_INTERVAL;
+            // mode > 0 with an empty payload tells the receiver "keep the current
+            // buffer" - the read path skips when data.length == 0. Leaving
+            // previousGraphics and framesSinceKeyframe untouched means subsequent
+            // diffs still reconstruct correctly against the last frame we sent.
+            gfxState.ccgraphics$setGraphicsData(mode, (byte) 0, new byte[0]);
         }
 
         if (mode == 2) {

@@ -10,6 +10,11 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.storage.LevelResource;
 
+/**
+ * Fabric entry point. Registers the {@code graphics_disabled} data component and
+ * binds the NightConfig-backed {@link CCGraphicsConfig} to the per-world
+ * {@code serverconfig/} directory, falling back to the global config folder.
+ */
 public class CCGraphicsFabric implements ModInitializer {
     private static final LevelResource SERVERCONFIG = new LevelResource("serverconfig");
 

@@ -11,6 +11,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Arrays;
 
+/**
+ * Adds the graphics-mode state to every {@code Terminal}: pixel buffer (sized
+ * {@code width * 6} by {@code height * 9}, filled with colour 15), current mode,
+ * frozen flag, 240-entry extended palette, keyframe-request flag and
+ * graphics-disabled flag. Hooks {@code init}, {@code clear}, {@code reset} and
+ * {@code resize} so the buffer stays consistent with the text-side terminal.
+ */
 @Mixin(value = Terminal.class, remap = false)
 abstract class TerminalMixin implements IGraphicsTerminal {
     private static final int PIXELS_W = 6;
@@ -54,11 +61,20 @@ abstract class TerminalMixin implements IGraphicsTerminal {
 
     @Inject(method = "resize", at = @At("TAIL"))
     private void ccgraphics$onResize(int width, int height, CallbackInfo ci) {
+        var wasInGraphicsMode = ccgraphics$graphicsMode > 0;
         ccgraphics$graphics = new byte[this.width * PIXELS_W * this.height * PIXELS_H];
         Arrays.fill(ccgraphics$graphics, (byte) 0x0F);
         ccgraphics$graphicsMode = 0;
         ccgraphics$frozen = false;
         ccgraphics$resetExtPalette();
+        // Graphics programs routinely overwrite base palette entries (mode 2's
+        // setPaletteColor indices 0-15 map through `15 - i` onto the base palette).
+        // After a forced resize the program loses its buffer; without also resetting
+        // the base palette, the now-text-mode background would render in whatever
+        // colour the program happened to leave at palette[15].
+        if (wasInGraphicsMode) {
+            ((Terminal) (Object) this).getPalette().resetColours();
+        }
     }
 
     @Unique

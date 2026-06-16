@@ -2,6 +2,11 @@ package com.sashafiesta.ccgraphics;
 
 import com.sashafiesta.ccgraphics.compression.GraphicsCompressor;
 
+/**
+ * The compression mode exposed in the user-facing config. Each value names a
+ * {@link GraphicsCompressor} registered at startup; {@link #apply()} sets the
+ * matching compressor as the default for outgoing graphics frames.
+ */
 public enum CompressionType {
     RAW("raw"),
     LZ4("lz4"),

@@ -1,5 +1,11 @@
 package com.sashafiesta.ccgraphics.duck;
 
+/**
+ * Duck type added to dan200's {@code Terminal} by {@code TerminalMixin}. Carries
+ * the per-terminal graphics state: pixel buffer, current mode (0/1/2), 240-entry
+ * extended palette, frozen flag, keyframe-request flag and graphics-disabled
+ * flag. Cast a {@code Terminal} to this to reach any graphics-mode operation.
+ */
 public interface IGraphicsTerminal {
     int ccgraphics$getGraphicsMode();
 

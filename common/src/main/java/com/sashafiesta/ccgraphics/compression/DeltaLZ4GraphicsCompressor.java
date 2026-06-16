@@ -2,6 +2,11 @@ package com.sashafiesta.ccgraphics.compression;
 
 import net.jpountz.lz4.LZ4Factory;
 
+/**
+ * Spatial-delta + LZ4: XORs each byte with the previous byte before LZ4. Wins
+ * when neighbouring pixels share colours; matches plain LZ4 in cost when they
+ * don't. Not a temporal diff - operates on a single frame at a time.
+ */
 public class DeltaLZ4GraphicsCompressor implements GraphicsCompressor {
     public static final byte TYPE_ID = 2;
     public static final String NAME = "delta_lz4";

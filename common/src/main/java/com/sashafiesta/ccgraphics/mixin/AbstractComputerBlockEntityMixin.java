@@ -19,6 +19,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Persists the per-computer {@code graphics_disabled} override to NBT
+ * ({@code ccgraphics:GraphicsDisabled}) and to the data-component map (so picking
+ * the block up preserves the setting), then pushes the flag onto the running
+ * {@code Terminal} each server tick.
+ */
 @Mixin(value = AbstractComputerBlockEntity.class, remap = false)
 abstract class AbstractComputerBlockEntityMixin extends BlockEntity {
     protected AbstractComputerBlockEntityMixin(BlockEntityType<?> type, BlockPos pos, BlockState state) {

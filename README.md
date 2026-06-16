@@ -11,7 +11,7 @@ CraftOS-PC compatible [graphics mode](https://www.craftos-pc.cc/docs/gfxmode) fo
 - Bundled CraftOS-PC programs: gfxpaint, pngview, raycast
 - Network sync and NBT persistence
 - Compressed graphics packets (LZ4 + delta)
-- Per-monitor bandwidth throttling
+- Per-terminal bandwidth throttling (computers and monitors)
 
 ## Configuration
 

@@ -61,20 +61,12 @@ abstract class TerminalMixin implements IGraphicsTerminal {
 
     @Inject(method = "resize", at = @At("TAIL"))
     private void ccgraphics$onResize(int width, int height, CallbackInfo ci) {
-        var wasInGraphicsMode = ccgraphics$graphicsMode > 0;
+        // On resize, allocate a fresh buffer of the new dimensions filled with
+        // 0x0F (renders as black after the 15-x palette flip). Mode, frozen
+        // flag, and palettes are left intact - the program can detect
+        // monitor_resize and redraw at will.
         ccgraphics$graphics = new byte[this.width * PIXELS_W * this.height * PIXELS_H];
         Arrays.fill(ccgraphics$graphics, (byte) 0x0F);
-        ccgraphics$graphicsMode = 0;
-        ccgraphics$frozen = false;
-        ccgraphics$resetExtPalette();
-        // Graphics programs routinely overwrite base palette entries (mode 2's
-        // setPaletteColor indices 0-15 map through `15 - i` onto the base palette).
-        // After a forced resize the program loses its buffer; without also resetting
-        // the base palette, the now-text-mode background would render in whatever
-        // colour the program happened to leave at palette[15].
-        if (wasInGraphicsMode) {
-            ((Terminal) (Object) this).getPalette().resetColours();
-        }
     }
 
     @Unique

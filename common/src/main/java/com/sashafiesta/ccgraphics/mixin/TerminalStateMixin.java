@@ -25,6 +25,10 @@ abstract class TerminalStateMixin implements IGraphicsTerminalState {
 
     @Inject(method = "<init>(Lnet/minecraft/network/FriendlyByteBuf;)V", at = @At("TAIL"))
     private void ccgraphics$readGraphics(FriendlyByteBuf buf, CallbackInfo ci) {
+        // Tolerate senders without this addon: when the buffer ends right after
+        // vanilla CC:T's payload there are no extension bytes to read, so leave
+        // the fields at their defaults (mode 0, no graphics data, no ext palette).
+        if (buf.readableBytes() <= 0) return;
         ccgraphics$graphicsMode = buf.readVarInt();
         if (ccgraphics$graphicsMode > 0) {
             ccgraphics$compressionType = buf.readByte();

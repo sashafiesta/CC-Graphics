@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import org.joml.Matrix4f;
+import com.sashafiesta.ccgraphics.client.GraphicsRenderTypes;
 import com.sashafiesta.ccgraphics.client.IGraphicsMonitorRenderState;
 import com.sashafiesta.ccgraphics.duck.IGraphicsTerminal;
 import dan200.computercraft.client.FrameInfo;
@@ -14,8 +15,6 @@ import dan200.computercraft.shared.peripheral.monitor.MonitorBlockEntity;
 import dan200.computercraft.shared.util.DirectionUtil;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -103,9 +102,8 @@ abstract class MonitorBlockEntityRendererMixin {
         var redraw = originMonitor.pollTerminalChanged();
         var textureLocation = graphicsTexture.update(terminal, redraw);
 
-        var pose = transform.last();
-        var matrix = pose.pose();
-        var consumer = bufferSource.getBuffer(RenderType.entitySolid(textureLocation));
+        var matrix = transform.last().pose();
+        var consumer = bufferSource.getBuffer(GraphicsRenderTypes.fullbright(textureLocation));
         var light = LightTexture.pack(15, 15);
 
         // Four black margin strips tiled around the texture, then the texture
@@ -116,19 +114,18 @@ abstract class MonitorBlockEntityRendererMixin {
         //
         // Local frame: positive Y is up, so the inner area runs (0, 0) to
         // (xSize, -ySize), and the bezel surround extends MARGIN past each side.
-        ccgraphics$drawBlackQuad(consumer, matrix, pose, light, -ccgraphics$MARGIN, ccgraphics$MARGIN, xSize + ccgraphics$MARGIN, 0);
-        ccgraphics$drawBlackQuad(consumer, matrix, pose, light, -ccgraphics$MARGIN, -ySize, xSize + ccgraphics$MARGIN, -ySize - ccgraphics$MARGIN);
-        ccgraphics$drawBlackQuad(consumer, matrix, pose, light, -ccgraphics$MARGIN, 0, 0, -ySize);
-        ccgraphics$drawBlackQuad(consumer, matrix, pose, light, xSize, 0, xSize + ccgraphics$MARGIN, -ySize);
+        ccgraphics$drawBlackQuad(consumer, matrix, light, -ccgraphics$MARGIN, ccgraphics$MARGIN, xSize + ccgraphics$MARGIN, 0);
+        ccgraphics$drawBlackQuad(consumer, matrix, light, -ccgraphics$MARGIN, -ySize, xSize + ccgraphics$MARGIN, -ySize - ccgraphics$MARGIN);
+        ccgraphics$drawBlackQuad(consumer, matrix, light, -ccgraphics$MARGIN, 0, 0, -ySize);
+        ccgraphics$drawBlackQuad(consumer, matrix, light, xSize, 0, xSize + ccgraphics$MARGIN, -ySize);
 
-        consumer.addVertex(matrix, 0, 0, 0).setColor(0xFFFFFFFF).setUv(0, 0)
-            .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0, 0, 1);
-        consumer.addVertex(matrix, 0, -ySize, 0).setColor(0xFFFFFFFF).setUv(0, 1)
-            .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0, 0, 1);
-        consumer.addVertex(matrix, xSize, -ySize, 0).setColor(0xFFFFFFFF).setUv(1, 1)
-            .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0, 0, 1);
-        consumer.addVertex(matrix, xSize, 0, 0).setColor(0xFFFFFFFF).setUv(1, 0)
-            .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0, 0, 1);
+        // POSITION_COLOR_TEX_LIGHTMAP vertex layout: position, color, UV, light.
+        // No overlay or normal attribute - the text render type's vertex format
+        // doesn't include them, so omitting them keeps the vertex compact.
+        consumer.addVertex(matrix, 0, 0, 0).setColor(0xFFFFFFFF).setUv(0, 0).setLight(light);
+        consumer.addVertex(matrix, 0, -ySize, 0).setColor(0xFFFFFFFF).setUv(0, 1).setLight(light);
+        consumer.addVertex(matrix, xSize, -ySize, 0).setColor(0xFFFFFFFF).setUv(1, 1).setLight(light);
+        consumer.addVertex(matrix, xSize, 0, 0).setColor(0xFFFFFFFF).setUv(1, 0).setLight(light);
 
         transform.popPose();
         ci.cancel();
@@ -136,16 +133,12 @@ abstract class MonitorBlockEntityRendererMixin {
 
     @Unique
     private static void ccgraphics$drawBlackQuad(
-        VertexConsumer consumer, Matrix4f matrix, PoseStack.Pose pose, int light,
+        VertexConsumer consumer, Matrix4f matrix, int light,
         float x1, float y1, float x2, float y2
     ) {
-        consumer.addVertex(matrix, x1, y1, 0).setColor(0xFF000000).setUv(0, 0)
-            .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0, 0, 1);
-        consumer.addVertex(matrix, x1, y2, 0).setColor(0xFF000000).setUv(0, 0)
-            .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0, 0, 1);
-        consumer.addVertex(matrix, x2, y2, 0).setColor(0xFF000000).setUv(0, 0)
-            .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0, 0, 1);
-        consumer.addVertex(matrix, x2, y1, 0).setColor(0xFF000000).setUv(0, 0)
-            .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0, 0, 1);
+        consumer.addVertex(matrix, x1, y1, 0).setColor(0xFF000000).setUv(0, 0).setLight(light);
+        consumer.addVertex(matrix, x1, y2, 0).setColor(0xFF000000).setUv(0, 0).setLight(light);
+        consumer.addVertex(matrix, x2, y2, 0).setColor(0xFF000000).setUv(0, 0).setLight(light);
+        consumer.addVertex(matrix, x2, y1, 0).setColor(0xFF000000).setUv(0, 0).setLight(light);
     }
 }

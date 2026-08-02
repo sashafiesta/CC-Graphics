@@ -31,6 +31,12 @@ versionRange = "[1.117.0,)"
 ordering = "AFTER"
 side = "BOTH"
 
+[[dependencies.ccgraphics]]
+modId = "ccterminals"
+type = "incompatible"
+versionRange = "(,0.1.1)"
+side = "BOTH"
+
 [[mixins]]
 config = "ccgraphics.mixins.json"
 

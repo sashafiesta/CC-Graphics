@@ -3,8 +3,12 @@ package com.sashafiesta.ccgraphics.compression;
 import net.jpountz.lz4.LZ4Factory;
 
 /**
- * Adaptive diff compressor: like lz4_diff but without timed keyframes.
- * Keyframes are only sent when >50% of pixels changed or on new viewer connect.
+ * Adaptive diff compressor: identical wire encoding to {@link Lz4DiffGraphicsCompressor},
+ * but leaves {@link #hasTimedKeyframes()} at {@code false}, so there is no periodic
+ * keyframe. {@code NetworkedTerminalMixin} then emits one only when it has to - no
+ * usable previous frame (first frame after entering graphics mode, or a resize), or
+ * an explicit request (new viewer) - plus the adaptive case: whenever the LZ4'd full
+ * frame turns out smaller than the LZ4'd diff, which is what a large change looks like.
  */
 public class Lz4AdaptiveDiffGraphicsCompressor implements GraphicsCompressor {
     public static final byte TYPE_ID = 4;

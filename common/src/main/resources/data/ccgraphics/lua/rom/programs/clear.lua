@@ -20,11 +20,9 @@ local function clear()
 end
 
 local function clearPixels()
-    if term.getGraphicsMode then
-        term.setGraphicsMode(1)
-        term.clear()
-        term.setGraphicsMode(0)
-    end
+    if not term.getGraphicsMode or not pcall(term.setGraphicsMode, 1) then return end
+    term.clear()
+    term.setGraphicsMode(0)
 end
 
 local function resetPalette()

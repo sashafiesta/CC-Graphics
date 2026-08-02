@@ -225,12 +225,15 @@ function drawBox(startX, startY, endX, endY, nColour)
         nColour = term.getBackgroundColour()
     end
 
+
+    local minX, maxX, minY, maxY = sortCoords(startX, startY, endX, endY)
+
     if term.getGraphicsMode and term.getGraphicsMode() then
-        local c, w, h = nColour or term.getBackgroundColor(), endX - startX, endY - startY
-        term.drawPixels(startX, startY, c, w, 1)
-        term.drawPixels(startX, startY, c, 1, h)
-        term.drawPixels(endX, startY+1, c, 1, h)
-        term.drawPixels(startX+1, endY, c, w, 1)
+        local c, w, h = nColour or term.getBackgroundColor(), maxX - minX, maxY - minY
+        term.drawPixels(minX, minY, c, w, 1)
+        term.drawPixels(minX, minY, c, 1, h)
+        term.drawPixels(maxX, minY+1, c, 1, h)
+        term.drawPixels(minX+1, maxY, c, w, 1)
     else
         local colourHex = colours.toBlit(nColour)
 
@@ -239,7 +242,6 @@ function drawBox(startX, startY, endX, endY, nColour)
             return
         end
 
-        local minX, maxX, minY, maxY = sortCoords(startX, startY, endX, endY)
         local width = maxX - minX + 1
 
         for y = minY, maxY do
@@ -287,9 +289,11 @@ function drawFilledBox(startX, startY, endX, endY, nColour)
         nColour = term.getBackgroundColour()
     end
 
+    local minX, maxX, minY, maxY = sortCoords(startX, startY, endX, endY)
+
     if term.getGraphicsMode and term.getGraphicsMode() then
         local c = nColour or term.getBackgroundColor()
-        term.drawPixels(startX, startY, c, endX - startX, endY - startY)
+        term.drawPixels(minX, minY, c, maxX - minX, maxY - minY)
     else
         local colourHex = colours.toBlit(nColour)
 
@@ -298,7 +302,6 @@ function drawFilledBox(startX, startY, endX, endY, nColour)
             return
         end
 
-        local minX, maxX, minY, maxY = sortCoords(startX, startY, endX, endY)
         local width = maxX - minX + 1
 
         for y = minY, maxY do

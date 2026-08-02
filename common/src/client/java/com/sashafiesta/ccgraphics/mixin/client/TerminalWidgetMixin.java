@@ -2,6 +2,7 @@ package com.sashafiesta.ccgraphics.mixin.client;
 
 import com.sashafiesta.ccgraphics.client.GraphicsTexture;
 import com.sashafiesta.ccgraphics.duck.IGraphicsTerminal;
+import com.sashafiesta.ccgraphics.duck.IGraphicsWidget;
 import dan200.computercraft.client.gui.widgets.TerminalWidget;
 import dan200.computercraft.core.input.UserComputerInput;
 import dan200.computercraft.core.terminal.Terminal;
@@ -21,9 +22,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * character-grid clamp, and overlays the per-widget
  * {@link com.sashafiesta.ccgraphics.client.GraphicsTexture} on top of the text
  * render at TAIL with a 2-pixel black margin.
+ * <p>
+ * Implements {@link IGraphicsWidget} so the owning screen can free that texture -
+ * see {@link ScreenMixin}. The widget itself has no lifecycle callback, and the
+ * render path cannot stand in for one: {@code renderWidget} bails out on
+ * {@code !visible}, and a widget dropped on screen close or {@code rebuildWidgets}
+ * is never rendered again at all.
  */
 @Mixin(TerminalWidget.class)
-abstract class TerminalWidgetMixin {
+abstract class TerminalWidgetMixin implements IGraphicsWidget {
     @Shadow(remap = false) @Final private Terminal terminal;
     @Shadow(remap = false) @Final private UserComputerInput computerInput;
     @Shadow(remap = false) @Final private int innerX;
@@ -32,6 +39,15 @@ abstract class TerminalWidgetMixin {
     @Shadow(remap = false) @Final private int innerHeight;
 
     @Unique private final GraphicsTexture ccgraphics$texture = new GraphicsTexture("ccgfx_terminal");
+
+    /**
+     * {@link GraphicsTexture#close()} is a no-op once it has run, so this stays safe
+     * when both screen hooks fire or when no texture was ever allocated.
+     */
+    @Override
+    public void ccgraphics$close() {
+        ccgraphics$texture.close();
+    }
 
     @Unique
     private boolean ccgraphics$inGraphicsMode(double mouseX, double mouseY) {
@@ -89,7 +105,10 @@ abstract class TerminalWidgetMixin {
     private void ccgraphics$onRenderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
         var gfx = (IGraphicsTerminal) terminal;
         if (gfx.ccgraphics$getGraphicsMode() <= 0) {
-            ccgraphics$texture.close();
+            // Drop the buffer as soon as the computer leaves graphics mode rather than
+            // holding it for the life of the screen. This is an optimisation only - the
+            // guaranteed release is the screen's IGraphicsWidget hook.
+            ccgraphics$close();
             return;
         }
 

@@ -14,9 +14,9 @@ import java.util.Arrays;
 /**
  * Adds the graphics-mode state to every {@code Terminal}: pixel buffer (sized
  * {@code width * 6} by {@code height * 9}, filled with colour 15), current mode,
- * frozen flag, 240-entry extended palette, keyframe-request flag and
- * graphics-disabled flag. Hooks {@code init}, {@code clear}, {@code reset} and
- * {@code resize} so the buffer stays consistent with the text-side terminal.
+ * frozen flag, 240-entry extended palette and graphics-disabled flag. Hooks
+ * {@code init}, {@code clear}, {@code reset} and {@code resize} so the buffer
+ * stays consistent with the text-side terminal.
  */
 @Mixin(value = Terminal.class, remap = false)
 abstract class TerminalMixin implements IGraphicsTerminal {
@@ -31,7 +31,6 @@ abstract class TerminalMixin implements IGraphicsTerminal {
     @Unique private int ccgraphics$graphicsMode = 0;
     @Unique private boolean ccgraphics$frozen = false;
     @Unique private byte[] ccgraphics$graphics;
-    @Unique private boolean ccgraphics$keyframeRequested = false;
     @Unique private boolean ccgraphics$graphicsDisabled = false;
 
     @Unique private int[] ccgraphics$extPaletteARGB = new int[240];
@@ -67,6 +66,19 @@ abstract class TerminalMixin implements IGraphicsTerminal {
         // monitor_resize and redraw at will.
         ccgraphics$graphics = new byte[this.width * PIXELS_W * this.height * PIXELS_H];
         Arrays.fill(ccgraphics$graphics, (byte) 0x0F);
+        // The buffer every cached frame and every diff base described is gone,
+        // and buffer length alone does not reveal that: an area-preserving
+        // reshape (18x26 -> 39x12) keeps the byte count identical while making
+        // every previous frame meaningless.
+        ccgraphics$invalidateGraphicsSync();
+    }
+
+    /**
+     * No-op base: a plain {@code Terminal} keeps no diff chain. Overridden by
+     * {@code NetworkedTerminalMixin}, which owns the state this discards.
+     */
+    @Override
+    public void ccgraphics$invalidateGraphicsSync() {
     }
 
     @Unique
@@ -151,8 +163,11 @@ abstract class TerminalMixin implements IGraphicsTerminal {
         var gh = ccgraphics$getGraphicsHeight();
         var x0 = Math.max(x, 0);
         var y0 = Math.max(y, 0);
-        var x1 = Math.min(x + w, gw);
-        var y1 = Math.min(y + h, gh);
+        // Long maths for the far edges: term.drawPixels passes w/h through unclamped, so
+        // x + w overflows to negative for a large enough width and the region collapses to
+        // empty - drawing nothing where CraftOS-PC fills to the screen edge.
+        var x1 = (int) Math.min((long) x + w, gw);
+        var y1 = (int) Math.min((long) y + h, gh);
         if (x0 >= x1 || y0 >= y1) return;
         var buf = ccgraphics$getGraphics();
         for (var row = y0; row < y1; row++) {
@@ -207,18 +222,6 @@ abstract class TerminalMixin implements IGraphicsTerminal {
     }
 
     @Override
-    public void ccgraphics$requestKeyframe() {
-        ccgraphics$keyframeRequested = true;
-    }
-
-    @Override
-    public boolean ccgraphics$consumeKeyframeRequest() {
-        var val = ccgraphics$keyframeRequested;
-        ccgraphics$keyframeRequested = false;
-        return val;
-    }
-
-    @Override
     public boolean ccgraphics$isGraphicsDisabled() { return ccgraphics$graphicsDisabled; }
 
     @Override
@@ -231,9 +234,9 @@ abstract class TerminalMixin implements IGraphicsTerminal {
 
     @Override
     public void ccgraphics$setExtPaletteData(int[] data) {
-        if (data == null || data.length != 240) return;
-        System.arraycopy(data, 0, ccgraphics$extPaletteARGB, 0, 240);
-        for (var i = 0; i < 240; i++) {
+        if (data == null || data.length != EXT_PALETTE_SIZE) return;
+        System.arraycopy(data, 0, ccgraphics$extPaletteARGB, 0, EXT_PALETTE_SIZE);
+        for (var i = 0; i < EXT_PALETTE_SIZE; i++) {
             var argb = data[i];
             ccgraphics$extPaletteRGB[i] = new double[]{
                 ((argb >> 16) & 0xFF) / 255.0,

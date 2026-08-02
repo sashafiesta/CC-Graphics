@@ -9,6 +9,8 @@
     "client": [
         "TerminalWidgetMixin",
         "MonitorBlockEntityRendererMixin",
-        "MonitorRenderStateMixin"
+        "MonitorRenderStateMixin",
+        "ScreenMixin",
+        "AbstractContainerScreenMixin"
     ]
 }

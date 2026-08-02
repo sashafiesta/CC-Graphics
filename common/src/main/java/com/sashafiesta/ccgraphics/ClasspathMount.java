@@ -1,22 +1,37 @@
 package com.sashafiesta.ccgraphics;
 
+import dan200.computercraft.api.filesystem.FileOperationException;
 import dan200.computercraft.api.filesystem.Mount;
+import dan200.computercraft.api.filesystem.MountConstants;
+import dan200.computercraft.core.apis.handles.ArrayByteChannel;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A read-only mount backed by files on the classpath (inside the mod JAR).
  * Files are registered at construction time via {@link #addFile(String)}.
+ * <p>
+ * Errors are reported as {@link FileOperationException} rather than {@code FileNotFoundException} because that is the
+ * only {@link IOException} CC:T's {@code MountWrapper} knows how to unwrap: anything else loses both the path and the
+ * reason, leaving Lua with a bare (and for the mount root, empty) error message.
  */
 public class ClasspathMount implements Mount {
     private final String basePath;
     private final Set<String> files = new HashSet<>();
     private final Set<String> directories = new HashSet<>();
+
+    /**
+     * Cache of file contents, keyed by mount-relative path.
+     * <p>
+     * We have to read a resource in full to learn its size (see {@link #read(String)}), so we hold onto the bytes
+     * instead of paying for that read on every {@code fs.getSize}/{@code fs.attributes}/{@code fs.open}. The overlay is
+     * a fixed handful of small ROM files, so this stays tiny. Sharing one array between readers is safe because
+     * {@link ArrayByteChannel} never writes to its backing array.
+     */
+    private final Map<String, byte[]> contentCache = new ConcurrentHashMap<>();
 
     /**
      * @param basePath classpath prefix, e.g. "data/ccgraphics/lua/rom"
@@ -55,7 +70,9 @@ public class ClasspathMount implements Mount {
 
     @Override
     public void list(String path, List<String> contents) throws IOException {
-        if (!directories.contains(path)) throw new FileNotFoundException(path);
+        if (!directories.contains(path)) {
+            throw new FileOperationException(path, files.contains(path) ? MountConstants.NOT_A_DIRECTORY : MountConstants.NO_SUCH_FILE);
+        }
         var prefix = path.isEmpty() ? "" : path + "/";
         var seen = new HashSet<String>();
         for (var file : files) {
@@ -80,25 +97,47 @@ public class ClasspathMount implements Mount {
         }
     }
 
+    /**
+     * Directories are registered in a set of their own, so they need an explicit branch here: without one every
+     * directory the overlay shadows ({@code /rom}, {@code /rom/apis}, ...) fails {@code fs.getSize}, and takes
+     * {@code fs.attributes} down with it because {@link Mount#getAttributes(String)}'s default implementation is
+     * written in terms of this method. Zero matches what CC:T's own {@code ArchiveMount} reports for a directory.
+     */
     @Override
     public long getSize(String path) throws IOException {
-        if (!files.contains(path)) throw new FileNotFoundException(path);
-        var resource = basePath + "/" + path;
-        try (var stream = ClasspathMount.class.getClassLoader().getResourceAsStream(resource)) {
-            if (stream == null) throw new FileNotFoundException(resource);
-            return stream.available();
-        }
+        if (directories.contains(path)) return 0;
+        if (!files.contains(path)) throw new FileOperationException(path, MountConstants.NO_SUCH_FILE);
+        return read(path).length;
     }
 
     @Override
     public SeekableByteChannel openForRead(String path) throws IOException {
-        if (!files.contains(path)) throw new FileNotFoundException(path);
+        if (!files.contains(path)) {
+            throw new FileOperationException(path, directories.contains(path) ? MountConstants.NOT_A_FILE : MountConstants.NO_SUCH_FILE);
+        }
+        return new ArrayByteChannel(read(path));
+    }
+
+    /**
+     * Read a registered file, caching its contents.
+     * <p>
+     * This deliberately reads the whole resource rather than trusting {@code InputStream#available()}, which is only
+     * contractually an estimate of what can be read without blocking. {@code ZipFile}'s inflater stream happens to
+     * report the true entry size, but Fabric and NeoForge both serve mod resources through their own classloaders and
+     * file systems, so that is not the stream we are guaranteed to get: a bare {@code InflaterInputStream} reports 1,
+     * and a stream over a non-seekable channel reports 0. Either would make {@code fs.getSize} and
+     * {@code fs.attributes().size} lie about every overlaid file.
+     */
+    private byte[] read(String path) throws IOException {
+        var cached = contentCache.get(path);
+        if (cached != null) return cached;
+
         var resource = basePath + "/" + path;
-        var stream = ClasspathMount.class.getClassLoader().getResourceAsStream(resource);
-        if (stream == null) throw new FileNotFoundException(resource);
-        // Read fully into a byte array and wrap as SeekableByteChannel
-        var bytes = stream.readAllBytes();
-        stream.close();
-        return new dan200.computercraft.core.apis.handles.ArrayByteChannel(bytes);
+        try (var stream = ClasspathMount.class.getClassLoader().getResourceAsStream(resource)) {
+            if (stream == null) throw new FileOperationException(path, MountConstants.NO_SUCH_FILE);
+            var bytes = stream.readAllBytes();
+            contentCache.put(path, bytes);
+            return bytes;
+        }
     }
 }

@@ -5,7 +5,8 @@ import dan200.computercraft.api.filesystem.Mount;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -37,25 +38,25 @@ public class OverlayMount implements Mount {
         return base.exists(path) && base.isDirectory(path);
     }
 
+    /**
+     * Both mounts list into a scratch list rather than straight into {@code contents}. {@link Mount#list} is an
+     * accumulator - the contract is "add all the file names to this list", not "fill this empty list" - so the caller
+     * may hand us entries it gathered elsewhere. Deduplicating against those would let names that have nothing to do
+     * with this directory shadow, and so silently drop, real overlay entries.
+     */
     @Override
     public void list(String path, List<String> contents) throws IOException {
-        var seen = new LinkedHashSet<String>();
+        var listed = new ArrayList<String>();
 
-        // Collect from base first
-        if (base.exists(path) && base.isDirectory(path)) {
-            base.list(path, contents);
-            seen.addAll(contents);
-        }
+        // Collect from base first, so its entries keep their original ordering
+        if (base.exists(path) && base.isDirectory(path)) base.list(path, listed);
 
-        // Add overlay entries, deduplicating
-        if (overlay.exists(path) && overlay.isDirectory(path)) {
-            var overlayContents = new java.util.ArrayList<String>();
-            overlay.list(path, overlayContents);
-            for (var entry : overlayContents) {
-                if (seen.add(entry)) {
-                    contents.add(entry);
-                }
-            }
+        // Then the overlay, which contributes anything the base does not already have
+        if (overlay.exists(path) && overlay.isDirectory(path)) overlay.list(path, listed);
+
+        var seen = new HashSet<String>();
+        for (var entry : listed) {
+            if (seen.add(entry)) contents.add(entry);
         }
     }
 

@@ -13,9 +13,11 @@
         "NetworkedTerminalMixin",
         "ServerComputerMixin",
         "ServerComputerAccessor",
+        "PocketServerComputerMixin",
         "AbstractComputerBlockEntityMixin",
         "UserComputerInputMixin",
         "ComputerExecutorMixin",
-        "MonitorBlockEntityMixin"
+        "MonitorBlockEntityMixin",
+        "MonitorWatcherMixin"
     ]
 }

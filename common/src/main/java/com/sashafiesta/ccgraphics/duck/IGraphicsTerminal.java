@@ -3,10 +3,18 @@ package com.sashafiesta.ccgraphics.duck;
 /**
  * Duck type added to dan200's {@code Terminal} by {@code TerminalMixin}. Carries
  * the per-terminal graphics state: pixel buffer, current mode (0/1/2), 240-entry
- * extended palette, frozen flag, keyframe-request flag and graphics-disabled
- * flag. Cast a {@code Terminal} to this to reach any graphics-mode operation.
+ * extended palette, frozen flag and graphics-disabled flag. Cast a
+ * {@code Terminal} to this to reach any graphics-mode operation.
  */
 public interface IGraphicsTerminal {
+    /**
+     * Entries in the extended palette - indices 16..255. Named here because it
+     * is the contract {@link #ccgraphics$setExtPaletteData(int[])} enforces, and
+     * anything deserialising a palette has to check against it before handing
+     * the array over.
+     */
+    int EXT_PALETTE_SIZE = 240;
+
     int ccgraphics$getGraphicsMode();
 
     void ccgraphics$setGraphicsMode(int mode);
@@ -39,11 +47,19 @@ public interface IGraphicsTerminal {
 
     void ccgraphics$setExtPaletteData(int[] data);
 
-    void ccgraphics$requestKeyframe();
-
-    boolean ccgraphics$consumeKeyframeRequest();
-
     boolean ccgraphics$isGraphicsDisabled();
 
     void ccgraphics$setGraphicsDisabled(boolean disabled);
+
+    /**
+     * Discard any frame-sync state derived from the current pixel buffer, called
+     * whenever that buffer is replaced.
+     * <p>
+     * Lives on this interface rather than beside the state it clears because the
+     * buffer is replaced by {@code Terminal.resize}, while the diff chain, the
+     * cached keyframe and the received-keyframe flag are all
+     * {@code NetworkedTerminal}'s. A plain {@code Terminal} has none of them and
+     * implements this as a no-op.
+     */
+    void ccgraphics$invalidateGraphicsSync();
 }
